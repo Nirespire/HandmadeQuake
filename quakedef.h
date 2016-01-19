@@ -13,4 +13,3 @@ typedef uint32_t uint32;
 
 #include "common.h"
 #include "q_stl.h"
-
