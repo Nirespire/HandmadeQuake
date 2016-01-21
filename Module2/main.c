@@ -1,11 +1,33 @@
 #include <windows.h>
 
+BOOL isRunning = TRUE;
+
 // Function who's pointer will be passed to Windows
 // Windows uses this to pass messages to the program
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+
+	LRESULT result;
+
+	switch (uMsg) {
+	// When any key is released
+	case WM_KEYUP:
+		isRunning = FALSE;
+		result = 56;
+		break;
+	// When window loses focus
+	case WM_ACTIVATE:
+		break;
+	// When window is closed
+	case WM_DESTROY:
+		break;
+	default:
+		return DefWindowProc(hWnd, uMsg, wParam, lParam);
+	}
+
+
 	// Default window procedure.
 	// Return default response for any message we don't care about
-	return DefWindowProc(hWnd, uMsg, wParam, lParam);
+	return result;
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
@@ -55,6 +77,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// 0,0 is upper left corner
 	PatBlt(DeviceContext, 0, 0, 800, 600, BLACKNESS);
 	ReleaseDC(mainWindow, DeviceContext);
+
+	MSG msg;
+	LRESULT result;
+
+	while (isRunning) {
+		// Check with OS
+
+		// If there is a message, return 1 and fills msg
+		// Else return 0
+		if (PeekMessage(&msg,NULL,0,0,PM_REMOVE)) {
+			// Translates msg to string
+			TranslateMessage(&msg);
+			// Sends it to the callback function MainWndProc
+			// Returns a result of the message
+			result = DispatchMessage(&msg);
+		}
+
+		// Update game if it needs to
+		// Draw graphics if it's time to
+	}
 		
 	return 0;
 }
