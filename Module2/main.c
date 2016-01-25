@@ -1,3 +1,4 @@
+#include<stdio.h>
 #include <windows.h>
 
 BOOL isRunning = TRUE;
@@ -6,7 +7,7 @@ BOOL isRunning = TRUE;
 // Windows uses this to pass messages to the program
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
-	LRESULT result;
+	LRESULT result = 0;
 
 	switch (uMsg) {
 	// When any key is released
@@ -58,7 +59,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	mainWindow = CreateWindowEx(
 		0,
 		"Module 2",
-		"Lesson 2.1",
+		"Lesson 2.3",
 		WindowStyle,
 		200,
 		200,
@@ -78,6 +79,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	PatBlt(DeviceContext, 0, 0, 800, 600, BLACKNESS);
 	ReleaseDC(mainWindow, DeviceContext);
 
+	// Union data structure to hold ticks returned by the OS
+	LARGE_INTEGER frequency;
+	// Returns ticks per second
+	QueryPerformanceCounter(&frequency);
+
+	// Compute seconds per tick
+	double secondsPerTick = 1.0 / (double)frequency.QuadPart;
+
+	LARGE_INTEGER tick, tock;
+	// Returns ticks since boot
+	QueryPerformanceCounter(&tick);
+
 	MSG msg;
 	LRESULT result;
 
@@ -96,6 +109,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		// Update game if it needs to
 		// Draw graphics if it's time to
+
+		// Update timers
+		QueryPerformanceCounter(&tock);
+		__int64 interval = tock.QuadPart - tick.QuadPart;
+		double secondsGoneBy = (double) interval * secondsPerTick;
+
+		char buf[64];
+		sprintf_s(buf, 64, "Total time: %3.7f \n", secondsGoneBy);
+		OutputDebugString(buf);
+
+		QueryPerformanceCounter(&tick);
 	}
 		
 	return 0;
