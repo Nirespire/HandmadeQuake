@@ -1,7 +1,55 @@
 #include<stdio.h>
 #include <windows.h>
 
-BOOL isRunning = TRUE;
+static BOOL isRunning = TRUE;
+
+
+/***************
+*	TIMER CODE *
+****************/
+
+static double GTimePassed = 0;
+static double secondsPerTick = 0;
+static __int64 GTimeCount = 0;
+
+float sys_initFloatTime(void) {
+	// Union data structure to hold ticks returned by the OS
+	LARGE_INTEGER frequency;
+	
+	// Returns ticks per second
+	QueryPerformanceFrequency(&frequency);
+
+	// Compute seconds per tick
+	secondsPerTick = 1.0 / (double)frequency.QuadPart;
+
+	LARGE_INTEGER counter;
+	QueryPerformanceCounter(&counter);
+
+	GTimeCount = counter.QuadPart;
+
+	return 0;
+}
+
+float sys_floatTime(void) {
+	LARGE_INTEGER counter;
+
+	// Returns ticks since boot
+	QueryPerformanceCounter(&counter);
+
+
+	__int64 interval = counter.QuadPart - GTimeCount;
+	GTimeCount = counter.QuadPart;
+	double secondsGoneBy = (double)interval * secondsPerTick;
+	GTimePassed += secondsGoneBy;
+
+	return (float)GTimePassed;
+}
+
+/*******************************/
+
+void sys_shutdown() {
+	isRunning = FALSE;
+}
 
 // Function who's pointer will be passed to Windows
 // Windows uses this to pass messages to the program
@@ -10,17 +58,16 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	LRESULT result = 0;
 
 	switch (uMsg) {
-	// When any key is released
-	case WM_KEYUP:
-		isRunning = FALSE;
-		result = 56;
-		break;
+
 	// When window loses focus
 	case WM_ACTIVATE:
 		break;
+
 	// When window is closed
 	case WM_DESTROY:
+		sys_shutdown();
 		break;
+
 	default:
 		return DefWindowProc(hWnd, uMsg, wParam, lParam);
 	}
@@ -59,10 +106,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	mainWindow = CreateWindowEx(
 		0,
 		"Module 2",
-		"Lesson 2.3",
+		"Lesson 2.4",
 		WindowStyle,
-		200,
-		200,
+		CW_USEDEFAULT,
+		CW_USEDEFAULT,
 		r.right-r.left,
 		r.bottom-r.top,
 		NULL,
@@ -79,47 +126,36 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	PatBlt(DeviceContext, 0, 0, 800, 600, BLACKNESS);
 	ReleaseDC(mainWindow, DeviceContext);
 
-	// Union data structure to hold ticks returned by the OS
-	LARGE_INTEGER frequency;
-	// Returns ticks per second
-	QueryPerformanceCounter(&frequency);
+	// Initialize the timer
+	float timecount = sys_initFloatTime();
 
-	// Compute seconds per tick
-	double secondsPerTick = 1.0 / (double)frequency.QuadPart;
-
-	LARGE_INTEGER tick, tock;
-	// Returns ticks since boot
-	QueryPerformanceCounter(&tick);
 
 	MSG msg;
-	LRESULT result;
 
 	while (isRunning) {
 		// Check with OS
-
 		// If there is a message, return 1 and fills msg
 		// Else return 0
-		if (PeekMessage(&msg,NULL,0,0,PM_REMOVE)) {
+		while (PeekMessage(&msg,NULL,0,0,PM_REMOVE)) {
 			// Translates msg to string
 			TranslateMessage(&msg);
 			// Sends it to the callback function MainWndProc
 			// Returns a result of the message
-			result = DispatchMessage(&msg);
+			DispatchMessage(&msg);
 		}
+
+		// Get a new value from the initialized timer
+		float newtime = sys_floatTime();
+
+		char buf[64];
+		sprintf_s(buf, 64, "Total time: %3.7f \n", newtime);
+		OutputDebugString(buf);
 
 		// Update game if it needs to
 		// Draw graphics if it's time to
 
-		// Update timers
-		QueryPerformanceCounter(&tock);
-		__int64 interval = tock.QuadPart - tick.QuadPart;
-		double secondsGoneBy = (double) interval * secondsPerTick;
+		Sleep(1);
 
-		char buf[64];
-		sprintf_s(buf, 64, "Total time: %3.7f \n", secondsGoneBy);
-		OutputDebugString(buf);
-
-		QueryPerformanceCounter(&tick);
 	}
 		
 	return 0;
