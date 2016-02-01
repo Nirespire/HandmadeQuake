@@ -1,5 +1,6 @@
 #include<stdio.h>
 #include <windows.h>
+#include "host.h"
 
 static BOOL isRunning = TRUE;
 
@@ -106,7 +107,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	mainWindow = CreateWindowEx(
 		0,
 		"Module 2",
-		"Lesson 2.4",
+		"Lesson 2.5",
 		WindowStyle,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
@@ -126,19 +127,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	PatBlt(DeviceContext, 0, 0, 800, 600, BLACKNESS);
 	ReleaseDC(mainWindow, DeviceContext);
 
+	// Call init code
+	host_init();
+
 	// Initialize the timer
-	float timecount = sys_initFloatTime();
+	float oldtime = sys_initFloatTime();
+
+	// Aiming for 60fps
+	float targetTime = 1.0f / 60.0f;
+
+	float timeAccumulated = 0;
 
 
 	MSG msg;
 
 	while (isRunning) {
 		// Check with OS
-		// If there is a message, return 1 and fills msg
-		// Else return 0
+		// If there is a message, return 1 and fills msg Else return 0
 		while (PeekMessage(&msg,NULL,0,0,PM_REMOVE)) {
 			// Translates msg to string
 			TranslateMessage(&msg);
+
 			// Sends it to the callback function MainWndProc
 			// Returns a result of the message
 			DispatchMessage(&msg);
@@ -147,16 +156,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		// Get a new value from the initialized timer
 		float newtime = sys_floatTime();
 
-		char buf[64];
-		sprintf_s(buf, 64, "Total time: %3.7f \n", newtime);
-		OutputDebugString(buf);
+		// Better to use subtractive tracking of time
+		// No lost frames on each iteration due to floating point precision
+		timeAccumulated = oldtime - newtime;
+		oldtime = newtime;
 
 		// Update game if it needs to
 		// Draw graphics if it's time to
+		if (timeAccumulated > targetTime) {
+			host_frame(targetTime);
+			timeAccumulated -= targetTime;
+		}
 
-		Sleep(1);
+
+		// DEBUG
+		char buf[64];
+		sprintf_s(buf, 64, "Total time: %3.7f \n", newtime);
+		OutputDebugString(buf); 
+		
 
 	}
+
+	// Shutdown code
+	host_shutdown();
 		
 	return 0;
 }
