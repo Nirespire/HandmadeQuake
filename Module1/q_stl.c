@@ -55,7 +55,7 @@ int32 Q_atoi(const char *str) {
 	int32 val = 0;
 	char c;
 
-	if (str == '-') {
+	if (*str == '-') {
 		sign = -1;
 		++str;
 	}

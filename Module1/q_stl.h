@@ -10,7 +10,7 @@ void Q_strcpy(char *dest, const char *src);
 	Pads extra space in dest with zeroes.
 	Output is always count long.
 */
-void Q_strncpy(char *dest, const char *src, char count);
+void Q_strncpy(char *dest, const char *src, int32 count);
 
 
 /**

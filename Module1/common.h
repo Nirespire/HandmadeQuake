@@ -1,5 +1,8 @@
 #pragma once
 
+
+typedef enum {false, true} qboolean;
+
 // This number should actually be 1 more than actual max number of args allowed
 #define MAX_NUM_ARGVS 50
 
