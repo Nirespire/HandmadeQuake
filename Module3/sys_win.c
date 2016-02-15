@@ -4,9 +4,84 @@ int isRunning = 1;
 
 int BufferWidth = 640;
 int BufferHeight = 480;
+// 4 means 32 bit RGB mode
+// 1 means 8 bit palletized mode
+int BytesPerPixel = 1;
 void* BackBuffer;
 
-BITMAPINFO BitMapInfo = { 0 };
+
+// So we can have more than 1 element in the pallet array
+typedef struct dibinfo_s {
+	BITMAPINFOHEADER bmiHeader;
+	RGBQUAD acolors[256];
+} dibinfo_t;
+
+dibinfo_t BitMapInfo = { 0 };
+
+void drawRect(int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char* buffer) {
+	
+	unsigned int color = ((r << 16) | (g << 8) | b);
+
+	// Check bounds
+	if (x < 0) {
+		x = 0;
+	}
+	if (y < 0) {
+		y = 0;
+	}
+	if ((x + w) > BufferWidth) {
+		w = BufferWidth - x;
+	}
+	if ((y + h) > BufferHeight) {
+		h = BufferHeight - y;
+	}
+	
+	// move to first pixel
+	buffer += (BufferWidth * BytesPerPixel * y) + (x * BytesPerPixel);
+
+	int* bufferWalker = (int*)buffer;
+	for (int height = 0; height < h; ++height) {
+		for (int width = 0; width < w; ++width) {
+			*bufferWalker++ = color;
+		}
+
+		buffer += BufferWidth * BytesPerPixel;
+		bufferWalker = (int*)buffer;
+	}
+
+}
+
+// 8 bit version
+// Color is index into pallet
+void drawRect8(int x, int y, int w, int h, unsigned char color, unsigned char* buffer) {
+	
+	// Check bounds
+	if (x < 0) {
+		x = 0;
+	}
+	if (y < 0) {
+		y = 0;
+	}
+	if ((x + w) > BufferWidth) {
+		w = BufferWidth - x;
+	}
+	if ((y + h) > BufferHeight) {
+		h = BufferHeight - y;
+	}
+
+	// move to first pixel
+	buffer += (BufferWidth * BytesPerPixel * y) + (x * BytesPerPixel);
+
+	unsigned char* bufferWalker = buffer;
+	for (int height = 0; height < h; ++height) {
+		for (int width = 0; width < w; ++width) {
+			*bufferWalker++ = color;
+		}
+
+		buffer += BufferWidth * BytesPerPixel;
+		bufferWalker = buffer;
+	}
+}
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	LRESULT result = 0;
@@ -70,7 +145,7 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	// Create window
 	HWND MainWindow = CreateWindowEx(
 			dwExStyle, "Module 3",
-			"Lesson 3.2", dwStyle,
+			"Lesson 3.3", dwStyle,
 			CW_USEDEFAULT, CW_USEDEFAULT,
 			r.right - r.left, r.bottom - r.top,
 			NULL, NULL,
@@ -85,13 +160,27 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	// define out bitmap info
 	BitMapInfo.bmiHeader.biSize = sizeof(BitMapInfo.bmiHeader);
-	BitMapInfo.bmiHeader.biHeight = BufferHeight;
+	BitMapInfo.bmiHeader.biHeight = -BufferHeight;
 	BitMapInfo.bmiHeader.biWidth = BufferWidth;
 	BitMapInfo.bmiHeader.biPlanes = 1;
-	BitMapInfo.bmiHeader.biBitCount = 32;
+	BitMapInfo.bmiHeader.biBitCount = 8 * BytesPerPixel;
 	BitMapInfo.bmiHeader.biCompression = BI_RGB;
 
-	BackBuffer = malloc(BufferWidth * BufferHeight * 4);
+	BackBuffer = malloc(BufferWidth * BufferHeight * BytesPerPixel);
+
+	// Initialize the pallet
+	if (BytesPerPixel == 1) {
+		BitMapInfo.acolors[0].rgbRed = 0;
+		BitMapInfo.acolors[0].rgbGreen = 0;
+		BitMapInfo.acolors[0].rgbBlue = 0;
+
+		for (int i = 1; i < 256; i++) {
+			BitMapInfo.acolors[i].rgbRed = rand() % 256;
+			BitMapInfo.acolors[i].rgbGreen = rand() % 256;
+			BitMapInfo.acolors[i].rgbBlue = rand() % 256;
+		}
+	}
+
 
 	MSG msg;
 
@@ -102,19 +191,35 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 			DispatchMessage(&msg);
 		}
 
-		// Pushing 4 bytes at a time
-		int* memoryWalker = (int*)BackBuffer;
-		for (int height = 0; height < BufferHeight; ++height) {
-			for (int width = 0; width < BufferWidth; ++width) {
-				
-				char red = rand() % 256;
-				char green = rand() % 256;
-				char blue = rand() % 256;
-				
-				// Little endian memory layout
-				// But RGB is layed out in that order in memory, 8 bit each
-				*memoryWalker++ = ((red << 16) | (green << 8) | blue);
+		if (BytesPerPixel == 4) {
+			//Pushing 4 bytes at a time
+			int* memoryWalker = (int*)BackBuffer;
+			for (int height = 0; height < BufferHeight; ++height) {
+				for (int width = 0; width < BufferWidth; ++width) {
+					
+					unsigned char red = rand() % 256;
+					unsigned char green = rand() % 256;
+					unsigned char blue = rand() % 256;
+					
+					// Little endian memory layout
+					// But RGB is layed out in that order in memory, 8 bit each
+					*memoryWalker++ = ((red << 16) | (green << 8) | blue);
+				}
 			}
+			drawRect(10, 10, 300, 200, 255, 0, 0, BackBuffer);
+		}
+		else if (BytesPerPixel == 1) {
+			// 8 bit version
+			unsigned char* memoryWalker = BackBuffer;
+			for (int height = 0; height < BufferHeight; ++height) {
+				for (int width = 0; width < BufferWidth; ++width) {
+
+					*memoryWalker++ = rand() % 256;
+				}
+			}
+
+			
+			drawRect8(10, 10, 300, 150, 1, BackBuffer);
 		}
 
 		// Get device context
@@ -124,7 +229,7 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		StretchDIBits(dc, 
 			0, 0, BufferWidth, BufferHeight, 
 			0, 0, BufferWidth, BufferHeight, 
-			BackBuffer, &BitMapInfo, DIB_RGB_COLORS, SRCCOPY);
+			BackBuffer, (BITMAPINFO*)&BitMapInfo, DIB_RGB_COLORS, SRCCOPY);
 
 		DeleteObject(dc);
 
