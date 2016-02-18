@@ -1,9 +1,14 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <windows.h>
+#include <stdio.h>
 
 int isRunning = 1;
 
 int BufferWidth = 640;
 int BufferHeight = 480;
+int WindowWidth = 640;
+int WindowHeight = 480;
 // 4 means 32 bit RGB mode
 // 1 means 8 bit palletized mode
 int BytesPerPixel = 1;
@@ -17,6 +22,47 @@ typedef struct dibinfo_s {
 } dibinfo_t;
 
 dibinfo_t BitMapInfo = { 0 };
+
+void drawPic8(int x, int y, int width, int height, unsigned char* source, unsigned char* dest) {
+	
+	// move to first pixel
+	dest += (BufferWidth * BytesPerPixel * y) + (x * BytesPerPixel);
+
+	unsigned char* bufferWalker = dest;
+
+	for (int h = 0; h < height; ++h) {
+		for (int w = 0; w < width; ++w) {
+			*bufferWalker = *source;
+			++bufferWalker;
+			++source;
+		}
+
+		dest += BufferWidth * BytesPerPixel;
+		bufferWalker = dest;
+	}
+}
+
+void drawPic32(int x, int y, int width, int height, unsigned char* source, unsigned char* dest) {
+	// move to first pixel
+	dest += (BufferWidth * BytesPerPixel * y) + (x * BytesPerPixel);
+
+	unsigned int* bufferWalker = (unsigned int*)dest;
+
+	for (int h = 0; h < height; ++h) {
+		for (int w = 0; w < width; ++w) {
+
+			// Pull out the RGB values from the pallet and draw them directly to the object
+			int* colorValue = (int*)&BitMapInfo.acolors[*source];
+
+			*bufferWalker = *colorValue;
+			++bufferWalker;
+			++source;
+		}
+
+		dest += BufferWidth * BytesPerPixel;
+		bufferWalker = (unsigned int*)dest;
+	}
+}
 
 void drawRect(int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b, unsigned char* buffer) {
 	
@@ -116,29 +162,30 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	DWORD dwExStyle = 0;
 	DWORD dwStyle = WS_OVERLAPPED;
 
-	BOOL fullscreen = FALSE;
-
-	if (fullscreen) {
-		DEVMODE dmScreenSettings = { 0 };
-		dmScreenSettings.dmSize = sizeof(dmScreenSettings);
-		dmScreenSettings.dmPelsHeight = BufferHeight;
-		dmScreenSettings.dmPelsWidth = BufferWidth;
-		dmScreenSettings.dmBitsPerPel = 32;
-		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSHEIGHT | DM_PELSWIDTH;
-
-		if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL) {
-			dwExStyle = WS_EX_APPWINDOW;
-			dwStyle = WS_POPUP;
-		}
-		else {
-			fullscreen = FALSE;
-		}
-	}
+	// TODO revisit fullscreen stuff
+	//BOOL fullscreen = FALSE;
+	//
+	//if (fullscreen) {
+	//	DEVMODE dmScreenSettings = { 0 };
+	//	dmScreenSettings.dmSize = sizeof(dmScreenSettings);
+	//	dmScreenSettings.dmPelsWidth = BufferWidth;
+	//	dmScreenSettings.dmPelsHeight = BufferHeight;
+	//	dmScreenSettings.dmBitsPerPel = 32;
+	//	dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSHEIGHT | DM_PELSWIDTH;
+	//
+	//	if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL) {
+	//		dwExStyle = WS_EX_APPWINDOW;
+	//		dwStyle = WS_POPUP;
+	//	}
+	//	else {
+	//		fullscreen = FALSE;
+	//	}
+	//}
 
 	// Create rectangle for window
 	RECT r = { 0 };
-	r.right = BufferWidth;
-	r.bottom = BufferHeight;
+	r.right = WindowWidth;
+	r.bottom = WindowHeight;
 
 	AdjustWindowRectEx(&r, dwStyle, 0, dwExStyle);
 
@@ -152,9 +199,10 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 			hInstance, 0
 		);
 
-	if (fullscreen) {
-		SetWindowLong(MainWindow, GWL_STYLE, 0);
-	}
+	// TODO
+	//if (fullscreen) {
+	//	SetWindowLong(MainWindow, GWL_STYLE, 0);
+	//}
 
 	ShowWindow(MainWindow, nShowCmd);
 
@@ -169,17 +217,38 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	BackBuffer = malloc(BufferWidth * BufferHeight * BytesPerPixel);
 
 	// Initialize the pallet
-	if (BytesPerPixel == 1) {
-		BitMapInfo.acolors[0].rgbRed = 0;
-		BitMapInfo.acolors[0].rgbGreen = 0;
-		BitMapInfo.acolors[0].rgbBlue = 0;
+	// This will only be used in 8 bit mode
+	FILE *pallete = fopen("palette.lmp", "r");
+	void* rawData = malloc(256 * 3);
+	unsigned char* palleteData = rawData;
+	size_t retVal = fread(palleteData, 1, 768, pallete);
 
-		for (int i = 1; i < 256; i++) {
-			BitMapInfo.acolors[i].rgbRed = rand() % 256;
-			BitMapInfo.acolors[i].rgbGreen = rand() % 256;
-			BitMapInfo.acolors[i].rgbBlue = rand() % 256;
-		}
+	for (int i = 0; i < 256; i++) {
+		BitMapInfo.acolors[i].rgbRed = *palleteData++;
+		BitMapInfo.acolors[i].rgbGreen = *palleteData++;
+		BitMapInfo.acolors[i].rgbBlue = *palleteData++;
 	}
+
+	free(rawData);
+	fclose(pallete);
+	
+
+	// Load some assets
+	FILE *disc = fopen("DISC.lmp", "r");
+	int discWidth, discHeight;
+	retVal = fread(&discWidth, 1, 4, disc);
+	retVal = fread(&discHeight, 1, 4, disc);
+	void* discData = malloc(discWidth * discHeight);
+	retVal = fread(discData, 1, discWidth * discHeight, disc);
+	fclose(disc);
+
+	FILE *pause = fopen("pause.lmp", "r");
+	int pauseWidth, pauseHeight;
+	retVal = fread(&pauseWidth, 1, 4, pause);
+	retVal = fread(&pauseHeight, 1, 4, pause);
+	void* pauseData = malloc(pauseWidth * pauseHeight);
+	retVal = fread(pauseData, 1, pauseWidth * pauseHeight, pause);
+	fclose(pause);
 
 
 	MSG msg;
@@ -206,7 +275,10 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 					*memoryWalker++ = ((red << 16) | (green << 8) | blue);
 				}
 			}
-			drawRect(10, 10, 300, 200, 255, 0, 0, BackBuffer);
+			//drawRect(10, 10, 300, 200, 255, 0, 0, BackBuffer);
+
+			drawPic32(10, 10, discWidth, discHeight, discData, BackBuffer);
+			drawPic32(100, 100, pauseWidth, pauseHeight, pauseData, BackBuffer);
 		}
 		else if (BytesPerPixel == 1) {
 			// 8 bit version
@@ -218,8 +290,9 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 				}
 			}
 
-			
-			drawRect8(10, 10, 300, 150, 1, BackBuffer);
+			drawPic8(10, 10, discWidth, discHeight, discData, BackBuffer);
+			drawPic8(100, 100, pauseWidth, pauseHeight, pauseData, BackBuffer);
+			//drawRect8(10, 10, 300, 150, 1, BackBuffer);
 		}
 
 		// Get device context
@@ -227,13 +300,17 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 		HDC dc = GetDC(MainWindow);
 
 		StretchDIBits(dc, 
-			0, 0, BufferWidth, BufferHeight, 
+			0, 0, WindowWidth, WindowHeight, 
 			0, 0, BufferWidth, BufferHeight, 
 			BackBuffer, (BITMAPINFO*)&BitMapInfo, DIB_RGB_COLORS, SRCCOPY);
 
 		DeleteObject(dc);
 
 	}
+
+	free(BackBuffer);
+	free(discData);
+	free(pauseData);
 
 
 	return EXIT_SUCCESS;
