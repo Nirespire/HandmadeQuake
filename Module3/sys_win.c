@@ -192,7 +192,7 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	// Create window
 	HWND MainWindow = CreateWindowEx(
 			dwExStyle, "Module 3",
-			"Lesson 3.3", dwStyle,
+			"Lesson 3.5", dwStyle,
 			CW_USEDEFAULT, CW_USEDEFAULT,
 			r.right - r.left, r.bottom - r.top,
 			NULL, NULL,
@@ -206,7 +206,7 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	ShowWindow(MainWindow, nShowCmd);
 
-	// define out bitmap info
+	// define our bitmap info
 	BitMapInfo.bmiHeader.biSize = sizeof(BitMapInfo.bmiHeader);
 	BitMapInfo.bmiHeader.biHeight = -BufferHeight;
 	BitMapInfo.bmiHeader.biWidth = BufferWidth;
@@ -218,7 +218,7 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 	// Initialize the pallet
 	// This will only be used in 8 bit mode
-	FILE *pallete = fopen("palette.lmp", "r");
+	FILE *pallete = fopen("palette.lmp", "rb");
 	void* rawData = malloc(256 * 3);
 	unsigned char* palleteData = rawData;
 	size_t retVal = fread(palleteData, 1, 768, pallete);
@@ -234,7 +234,7 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	
 
 	// Load some assets
-	FILE *disc = fopen("DISC.lmp", "r");
+	FILE *disc = fopen("DISC.lmp", "rb");
 	int discWidth, discHeight;
 	retVal = fread(&discWidth, 1, 4, disc);
 	retVal = fread(&discHeight, 1, 4, disc);
@@ -242,7 +242,7 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	retVal = fread(discData, 1, discWidth * discHeight, disc);
 	fclose(disc);
 
-	FILE *pause = fopen("pause.lmp", "r");
+	FILE *pause = fopen("pause.lmp", "rb");
 	int pauseWidth, pauseHeight;
 	retVal = fread(&pauseWidth, 1, 4, pause);
 	retVal = fread(&pauseHeight, 1, 4, pause);
@@ -304,7 +304,7 @@ int CALLBACK WinMain (HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 			0, 0, BufferWidth, BufferHeight, 
 			BackBuffer, (BITMAPINFO*)&BitMapInfo, DIB_RGB_COLORS, SRCCOPY);
 
-		DeleteObject(dc);
+		ReleaseDC(MainWindow, dc);
 
 	}
 

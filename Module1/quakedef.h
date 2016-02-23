@@ -15,3 +15,5 @@ typedef uint32_t uint32;
 #include "common.h"
 #include "q_stl.h"
 #include "host.h"
+#include "sys.h"
+#include "vid.h"
