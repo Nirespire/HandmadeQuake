@@ -13,6 +13,17 @@ void* BackBuffer = NULL;
 BITMAPINFO BitMapInfo = { 0 };
 HWND MainWindow;
 
+typedef enum {MS_WINDOWED, MS_FULLSCREEN} modestate_t;
+
+typedef struct {
+	modestate_t type;
+	int width;
+	int height;
+} vmode_t;
+
+vmode_t modeList[30];
+int modenums = 0;
+
 // Function who's pointer will be passed to Windows
 // Windows uses this to pass messages to the program
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -32,13 +43,16 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN: 
 	{
 		if (wParam == 'A') {
-			VID_SetMode(640, 480);
+			VID_SetMode(0);
 		}
 		else if (wParam == 'S') {
-			VID_SetMode(800, 600);
+			VID_SetMode(1);
 		}
 		else if (wParam == 'D') {
-			VID_SetMode(1024, 768);
+			VID_SetMode(2);
+		}
+		else if (wParam == 'F') {
+			VID_SetMode(3);
 		}
 		else if (wParam == 'Q') {
 			sys_shutdown();
@@ -55,14 +69,40 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 	return result;
 }
 
-void VID_SetMode(int width, int height) {
+void VID_InitWindowedMode(void) {
+	modeList[modenums].type = MS_WINDOWED;
+	modeList[modenums].width = 320;
+	modeList[modenums].height = 240;
+	++modenums;
+
+	modeList[modenums].type = MS_WINDOWED;
+	modeList[modenums].width = 640;
+	modeList[modenums].height = 480;
+	++modenums;
+
+	modeList[modenums].type = MS_WINDOWED;
+	modeList[modenums].width = 800;
+	modeList[modenums].height = 600;
+	++modenums;
+		
+	modeList[modenums].type = MS_WINDOWED;
+	modeList[modenums].width = 1024;
+	modeList[modenums].height = 768;
+	++modenums;
+}
+
+void VID_InitFullscreenMode(void) {
+	
+}
+
+void VID_SetMode(int modeIndex) {
 
 	if (BackBuffer) {
 		VID_Shutdown();
 	}
 
-	WindowWidth = width;
-	WindowHeight = height;
+	WindowWidth = modeList[modeIndex].width;
+	WindowHeight = modeList[modeIndex].height;
 
 	BufferHeight = WindowHeight;
 	BufferWidth = WindowWidth;
@@ -144,7 +184,10 @@ void VID_Init(void) {
 		exit(EXIT_FAILURE);
 	}
 
-	VID_SetMode(WindowWidth, WindowHeight);
+	VID_InitWindowedMode();
+	VID_InitFullscreenMode();
+
+	VID_SetMode(0);
 
 }
 
