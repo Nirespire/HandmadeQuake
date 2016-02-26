@@ -1,10 +1,11 @@
 #include "quakedef.h"
 #include "winquake.h"
 
-static int BufferWidth = 640;
-static int BufferHeight = 480;
-static int WindowWidth = 640;
-static int WindowHeight = 480;
+// These are read in from the OS through devmode now in the init functions
+static int BufferWidth = 0;
+static int BufferHeight = 0;
+static int WindowWidth = 0;
+static int WindowHeight = 0;
 // 4 means 32 bit RGB mode
 // 1 means 8 bit palletized mode
 static int BytesPerPixel = 4;
@@ -17,12 +18,14 @@ typedef enum {MS_WINDOWED, MS_FULLSCREEN} modestate_t;
 
 typedef struct {
 	modestate_t type;
-	int width;
-	int height;
+	int32 width;
+	int32 height;
+	uint32 Hz;
 } vmode_t;
 
-vmode_t modeList[30];
-int modenums = 0;
+vmode_t modeList[40];
+int32 ModeCount = 0;
+int32 FirstFullscreenMode = -1;
 
 // Function who's pointer will be passed to Windows
 // Windows uses this to pass messages to the program
@@ -54,6 +57,12 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if (wParam == 'F') {
 			VID_SetMode(3);
 		}
+		else if (wParam == '1') {
+			VID_SetMode(FirstFullscreenMode);
+		}
+		else if (wParam == '2') {
+			VID_SetMode(FirstFullscreenMode + 1);
+		}
 		else if (wParam == 'Q') {
 			sys_shutdown();
 		}
@@ -70,63 +79,70 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 
 void VID_InitWindowedMode(void) {
-	modeList[modenums].type = MS_WINDOWED;
-	modeList[modenums].width = 320;
-	modeList[modenums].height = 240;
-	++modenums;
+	modeList[ModeCount].type = MS_WINDOWED;
+	modeList[ModeCount].width = 320;
+	modeList[ModeCount].height = 240;
+	modeList[ModeCount].Hz = 0;
+	++ModeCount;
 
-	modeList[modenums].type = MS_WINDOWED;
-	modeList[modenums].width = 640;
-	modeList[modenums].height = 480;
-	++modenums;
+	modeList[ModeCount].type = MS_WINDOWED;
+	modeList[ModeCount].width = 640;
+	modeList[ModeCount].height = 480;
+	modeList[ModeCount].Hz = 0;
+	++ModeCount;
 
-	modeList[modenums].type = MS_WINDOWED;
-	modeList[modenums].width = 800;
-	modeList[modenums].height = 600;
-	++modenums;
+	modeList[ModeCount].type = MS_WINDOWED;
+	modeList[ModeCount].width = 800;
+	modeList[ModeCount].height = 600;
+	modeList[ModeCount].Hz = 0;
+	++ModeCount;
 		
-	modeList[modenums].type = MS_WINDOWED;
-	modeList[modenums].width = 1024;
-	modeList[modenums].height = 768;
-	++modenums;
+	modeList[ModeCount].type = MS_WINDOWED;
+	modeList[ModeCount].width = 1024;
+	modeList[ModeCount].height = 768;
+	modeList[ModeCount].Hz = 0;
+	++ModeCount;
 }
 
 void VID_InitFullscreenMode(void) {
-	
+
+	FirstFullscreenMode = ModeCount;
+
+	DEVMODE devMode;
+	int modeNum = 0;
+	BOOL success;
+	int oldWidth = 0, oldHeight = 0;
+
+	// Get all resolutions supported by the display
+	do {
+		success = EnumDisplaySettings(NULL, modeNum, &devMode);
+
+		if (devMode.dmPelsHeight == oldHeight && devMode.dmPelsWidth == oldWidth) {
+			
+			// For similar frequencies, get the one with the highest refersh rate
+			if (devMode.dmDisplayFrequency > modeList[ModeCount - 1].Hz) {
+				modeList[ModeCount - 1].Hz = devMode.dmDisplayFrequency;
+			}
+			
+		}
+		else {
+			modeList[ModeCount].type = MS_FULLSCREEN;
+			modeList[ModeCount].width = devMode.dmPelsWidth;
+			modeList[ModeCount].height = devMode.dmPelsHeight;
+			modeList[ModeCount].Hz = devMode.dmDisplayFrequency;
+			++ModeCount;
+
+			oldHeight = devMode.dmPelsHeight;
+			oldWidth = devMode.dmPelsWidth;
+		}
+
+		++modeNum;
+
+	} while (success);
 }
 
-void VID_SetMode(int modeIndex) {
-
-	if (BackBuffer) {
-		VID_Shutdown();
-	}
-
-	WindowWidth = modeList[modeIndex].width;
-	WindowHeight = modeList[modeIndex].height;
-
-	BufferHeight = WindowHeight;
-	BufferWidth = WindowWidth;
-
-	// TODO revisit fullscreen stuff
-	//BOOL fullscreen = FALSE;
-	//
-	//if (fullscreen) {
-	//	DEVMODE dmScreenSettings = { 0 };
-	//	dmScreenSettings.dmSize = sizeof(dmScreenSettings);
-	//	dmScreenSettings.dmPelsWidth = BufferWidth;
-	//	dmScreenSettings.dmPelsHeight = BufferHeight;
-	//	dmScreenSettings.dmBitsPerPel = 32;
-	//	dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSHEIGHT | DM_PELSWIDTH;
-	//
-	//	if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL) {
-	//		dwExStyle = WS_EX_APPWINDOW;
-	//		dwStyle = WS_POPUP;
-	//	}
-	//	else {
-	//		fullscreen = FALSE;
-	//	}
-	//}
-
+void VID_SetWindowedMode(int modeIndex) {
+	
 	DWORD windowExStyle = 0;
 	DWORD windowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
 
@@ -147,6 +163,75 @@ void VID_SetMode(int modeIndex) {
 		NULL, NULL,
 		globalInstance, 0
 		);
+}
+
+void VID_SetFullscreenMode(int modeIndex) {
+	
+	BOOL fullscreen = TRUE;
+
+	DWORD windowExStyle = 0;
+	DWORD windowStyle = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+
+	
+	if (fullscreen) {
+		DEVMODE dmScreenSettings = { 0 };
+		dmScreenSettings.dmSize = sizeof(dmScreenSettings);
+		dmScreenSettings.dmPelsWidth = modeList[modeIndex].width;
+		dmScreenSettings.dmPelsHeight = modeList[modeIndex].height;
+		dmScreenSettings.dmDisplayFrequency = modeList[modeIndex].Hz;
+		dmScreenSettings.dmBitsPerPel = 32;
+		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSHEIGHT | DM_PELSWIDTH;
+	
+		if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) == DISP_CHANGE_SUCCESSFUL) {
+			windowExStyle = WS_EX_APPWINDOW;
+			windowStyle = WS_POPUP;
+		}
+		else {
+			fullscreen = FALSE;
+		}
+	}
+
+	// Create rectangle for window
+	RECT r = { 0 };
+	r.right = WindowWidth;
+	r.bottom = WindowHeight;
+
+	AdjustWindowRectEx(&r, windowStyle, 0, windowExStyle);
+
+
+	// Create window
+	MainWindow = CreateWindowEx(
+		windowExStyle, "Module 3",
+		"Lesson 3.5", windowStyle,
+		CW_USEDEFAULT, CW_USEDEFAULT,
+		r.right - r.left, r.bottom - r.top,
+		NULL, NULL,
+		globalInstance, 0
+		);
+
+	SetWindowLong(MainWindow, GWL_STYLE, 0);
+}
+
+
+void VID_SetMode(int modeIndex) {
+
+	if (BackBuffer) {
+		
+		VID_Shutdown();
+	}
+
+	WindowWidth = modeList[modeIndex].width;
+	WindowHeight = modeList[modeIndex].height;
+
+	BufferHeight = WindowHeight;
+	BufferWidth = WindowWidth;
+
+	if (modeList[modeIndex].type == MS_WINDOWED) {
+		VID_SetWindowedMode(modeIndex);
+	}
+	else {
+		VID_SetFullscreenMode(modeIndex);
+	}
 
 	ShowWindow(MainWindow, SW_SHOWDEFAULT);
 
@@ -205,6 +290,7 @@ void VID_Update(void) {
 }
 
 void VID_Shutdown(void) {
+	ChangeDisplaySettings(NULL, 0);
 	DestroyWindow(MainWindow);
 	free(BackBuffer);
 	BackBuffer = NULL;
