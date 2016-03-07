@@ -19,7 +19,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\file.c" />
     <ClCompile Include="..\..\Source.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\file.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D5A9F5D5-9DBC-4E8D-8C56-016CF753D099}</ProjectGuid>

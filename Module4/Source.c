@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
+
+#include "file.h"
 
 char* va(char* format, ...) {
 	// Used to walk through variable arg list
@@ -22,30 +25,33 @@ char* va(char* format, ...) {
 
 int main() {
 
-	char* res = va("%d", 5.0f, 10);
+	int size;
 
-	FILE* f;
-	fopen_s(&f, "../Source.c", "rb");
-	int pos;
-	int end;
+	int fileHandle = Sys_FileOpenRead("../../Source.c", &size);
 
-	// Pos is set to the current position of the file pointer
-	// Gets set to 0 since it's at the beginning
-	pos = ftell(f);
+	if (fileHandle == -1) {
+		int a = 5; a;
+	}
 
-	// Move an offset of 0 bytes to end of file
-	fseek(f, 0, SEEK_END);
-	
-	// end gets set to size of file in bytes
-	end = ftell(f);
+	void* buffer = malloc(size);
 
-	// Move pointer back to beginning
-	fseek(f, pos, SEEK_SET);
+	Sys_FileRead(fileHandle, buffer, size);
 
-	char fileData[1024];
-	fread_s(fileData, 1024, 1, end, f);
+	int writeFile = Sys_FileOpenWrite("../../Source.out");
 
-	fclose(f);
+	if (writeFile == -1) {
+		int a = 5; a;
+	}
+
+	Sys_FileWrite(writeFile, buffer, size);
+
+	Sys_FileClose(fileHandle);
+	Sys_FileClose(writeFile);
+
+	free(buffer);
+	buffer = NULL;
+
+	// char* colorData = LoadFile("palette.lmp");
 
 	return 0;
 }
