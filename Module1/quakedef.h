@@ -11,6 +11,7 @@
 //#include <string.h>
 
 // typedef types from stdint.h so that chars and ints are defined based on their bit sizes
+typedef int8_t int8;
 typedef uint8_t uint8;
 typedef int32_t int32;
 typedef uint32_t uint32;
@@ -20,3 +21,4 @@ typedef uint32_t uint32;
 #include "host.h"
 #include "sys.h"
 #include "vid.h"
+#include "draw.h"

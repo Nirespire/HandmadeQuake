@@ -2,14 +2,15 @@
 #include "winquake.h"
 
 // These are read in from the OS through devmode now in the init functions
-static int BufferWidth = 0;
-static int BufferHeight = 0;
 static int WindowWidth = 0;
 static int WindowHeight = 0;
-// 4 means 32 bit RGB mode
-// 1 means 8 bit palletized mode
-static int BytesPerPixel = 4;
-void* BackBuffer = NULL;
+
+static uint8* charData;
+static int32 charLength;
+
+static uint32 colorArray[256];
+
+viddef_t Vid;
 
 BITMAPINFO BitMapInfo = { 0 };
 HWND MainWindow;
@@ -215,7 +216,7 @@ void VID_SetFullscreenMode(int modeIndex) {
 
 void VID_SetMode(int modeIndex) {
 
-	if (BackBuffer) {
+	if (Vid.BackBuffer) {
 		
 		VID_Shutdown();
 	}
@@ -223,8 +224,9 @@ void VID_SetMode(int modeIndex) {
 	WindowWidth = modeList[modeIndex].width;
 	WindowHeight = modeList[modeIndex].height;
 
-	BufferHeight = WindowHeight;
-	BufferWidth = WindowWidth;
+	Vid.BufferHeight = 240;
+	Vid.BufferWidth = 320;
+	Vid.BytesPerPixel = 4;
 
 	if (modeList[modeIndex].type == MS_WINDOWED) {
 		VID_SetWindowedMode(modeIndex);
@@ -239,18 +241,21 @@ void VID_SetMode(int modeIndex) {
 	HDC DeviceContext = GetDC(MainWindow);
 	// Paint the screen black
 	// 0,0 is upper left corner
-	PatBlt(DeviceContext, 0, 0, BufferWidth, BufferHeight, BLACKNESS);
+	PatBlt(DeviceContext, 0, 0, Vid.BufferWidth, Vid.BufferHeight, BLACKNESS);
 	ReleaseDC(MainWindow, DeviceContext);
 
 	// define our bitmap info
 	BitMapInfo.bmiHeader.biSize = sizeof(BitMapInfo.bmiHeader);
-	BitMapInfo.bmiHeader.biHeight = -BufferHeight;
-	BitMapInfo.bmiHeader.biWidth = BufferWidth;
+	BitMapInfo.bmiHeader.biHeight = -Vid.BufferHeight;
+	BitMapInfo.bmiHeader.biWidth = Vid.BufferWidth;
 	BitMapInfo.bmiHeader.biPlanes = 1;
-	BitMapInfo.bmiHeader.biBitCount = 8 * BytesPerPixel;
+	BitMapInfo.bmiHeader.biBitCount = 8 * Vid.BytesPerPixel;
 	BitMapInfo.bmiHeader.biCompression = BI_RGB;
 
-	BackBuffer = malloc(BufferWidth * BufferHeight * BytesPerPixel);
+	Vid.BackBuffer = malloc(Vid.BufferWidth * Vid.BufferHeight * Vid.BytesPerPixel);
+
+
+	charData = COM_FindFile("gfx/menuplyr.lmp", &charLength);
 
 }
 
@@ -269,6 +274,24 @@ void VID_Init(void) {
 		exit(EXIT_FAILURE);
 	}
 
+	int32 paletteLength = 0;
+	uint8* paletteData = COM_FindFile("gfx/palette.lmp", &paletteLength);
+
+	uint8* paletteWalker = paletteData;
+
+	for (int i = 0; i < 256; ++i) {
+		uint8 red = *paletteWalker++;
+		uint8 green = *paletteWalker++;
+		uint8 blue = *paletteWalker++;
+
+		uint32 color = ((red << 16) | (green << 8) | (blue));
+		colorArray[i] = color;
+	}
+
+	free(paletteData);
+
+	Vid.ColorPtr = &colorArray;
+
 	VID_InitWindowedMode();
 	VID_InitFullscreenMode();
 
@@ -278,12 +301,14 @@ void VID_Init(void) {
 
 void VID_Update(void) {
 
+	drawPic32(10, 10, 48, 56, charData+8);
+
 	HDC dc = GetDC(MainWindow);
 
 	StretchDIBits(dc,
 		0, 0, WindowWidth, WindowHeight,
-		0, 0, BufferWidth, BufferHeight,
-		BackBuffer, (BITMAPINFO*)&BitMapInfo, DIB_RGB_COLORS, SRCCOPY);
+		0, 0, Vid.BufferWidth, Vid.BufferHeight,
+		(void*)Vid.BackBuffer, (BITMAPINFO*)&BitMapInfo, DIB_RGB_COLORS, SRCCOPY);
 
 	ReleaseDC(MainWindow, dc);
 
@@ -292,6 +317,8 @@ void VID_Update(void) {
 void VID_Shutdown(void) {
 	ChangeDisplaySettings(NULL, 0);
 	DestroyWindow(MainWindow);
-	free(BackBuffer);
-	BackBuffer = NULL;
+	free(Vid.BackBuffer);
+	Vid.BackBuffer = NULL;
+
+	free(charData);
 }
