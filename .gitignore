@@ -271,3 +271,7 @@ _Pvt_Extensions
 id1
 *.lmp
 *.PAK
+
+# Visual Memory Leak Debugger
+vld
+*.manifest

@@ -21,6 +21,7 @@ qboolean host_filterTime(float time) {
 }
 
 void host_init(void) {
+	COM_FileInit();
 	VID_Init();
 }
 
@@ -41,4 +42,5 @@ void host_frame(float timestep) {
 
 void host_shutdown(void) {
 	VID_Shutdown();
+	COM_FileShutdown();
 }

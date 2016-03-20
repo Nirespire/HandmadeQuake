@@ -20,3 +20,8 @@ void COM_ParseCmdLine(uint8 *lpCmdLine);
 	Returns the com_argv index of the provided parameter string
 */
 int32 COM_CheckParm(uint8 *parm);
+
+
+void COM_FileInit(void);
+char* COM_FindFile(const char* filename, int* fileLength);
+void COM_FileShutdown(void);

@@ -5,7 +5,10 @@
 
 #pragma once
 #include <stdint.h>
-#include<stdio.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+//#include <string.h>
 
 // typedef types from stdint.h so that chars and ints are defined based on their bit sizes
 typedef uint8_t uint8;
