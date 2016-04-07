@@ -41,8 +41,8 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;
 
 		// When window is closed
-	case WM_DESTROY:
-		//sys_shutdown();
+	case WM_CLOSE:
+		sys_shutdown();
 		break;
 	case WM_KEYDOWN: 
 	{
@@ -58,12 +58,12 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		else if (wParam == 'F') {
 			VID_SetMode(3);
 		}
-		else if (wParam == '1') {
-			VID_SetMode(FirstFullscreenMode);
-		}
-		else if (wParam == '2') {
-			VID_SetMode(FirstFullscreenMode + 1);
-		}
+		//else if (wParam == '1') {
+		//	VID_SetMode(FirstFullscreenMode);
+		//}
+		//else if (wParam == '2') {
+		//	VID_SetMode(FirstFullscreenMode + 1);
+		//}
 		else if (wParam == 'Q') {
 			sys_shutdown();
 		}
@@ -157,7 +157,7 @@ void VID_SetWindowedMode(int modeIndex) {
 
 	// Create window
 	MainWindow = CreateWindowEx(
-		windowExStyle, "Module 3",
+		windowExStyle, "Handmake Quake",
 		"Lesson 3.5", windowStyle,
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		r.right - r.left, r.bottom - r.top,
@@ -202,7 +202,7 @@ void VID_SetFullscreenMode(int modeIndex) {
 
 	// Create window
 	MainWindow = CreateWindowEx(
-		windowExStyle, "Module 3",
+		windowExStyle, "Handmake Quake",
 		"Lesson 3.5", windowStyle,
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		r.right - r.left, r.bottom - r.top,
@@ -268,7 +268,7 @@ void VID_Init(void) {
 	wc.lpfnWndProc = MainWndProc;
 	wc.hInstance = globalInstance;
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wc.lpszClassName = "Module 3";
+	wc.lpszClassName = "Handmake Quake";
 
 	if (!RegisterClassEx(&wc)) {
 		exit(EXIT_FAILURE);

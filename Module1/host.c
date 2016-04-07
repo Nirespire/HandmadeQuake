@@ -23,6 +23,8 @@ qboolean host_filterTime(float time) {
 void host_init(void) {
 	COM_FileInit();
 	VID_Init();
+	W_loadWadFile("gfx.wad");
+	void* mem = W_getLumpName("num_0");
 }
 
 void host_frame(float timestep) {
