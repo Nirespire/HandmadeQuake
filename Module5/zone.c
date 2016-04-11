@@ -1,8 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "zone.h"
 #include <string.h>
+#include <assert.h>
 // Used to identify the start of a valid piece of memory
-#define HUNK_SENTINAL 0x1df001ed
+#define HUNK_SENTINEL 0x1df001ed
 
 typedef struct {
 	int memorySentinal;
@@ -30,6 +31,21 @@ void Memory_Init(void* buffer, int bufferSize) {
 	//void* zoneSpace = Hunk_AllocName(ZONESIZE, "zone");
 }
 
+void Hunk_Check(void) {
+	for (hunk_t* header = (hunk_t*)HunkBase; (char*)header != (HunkBase + HunkLowOffset);) {
+		
+		if (header->memorySentinal != HUNK_SENTINEL) {
+			assert(0);
+		}
+
+		if (header->memorySize < 16 || (char*)header - HunkBase + header->memorySize > HunkSize) {
+			assert(0);
+		}
+
+		header = (hunk_t*)((char*)header + header->memorySize);
+	}
+}
+
 void* Hunk_Alloc(int requestSize) {
 	return Hunk_AllocName(requestSize, "unknown");
 }
@@ -47,8 +63,39 @@ void* Hunk_AllocName(int requestSize, char* requestName) {
 	memset(header, 0, totalSize);
 
 	header->memorySize = totalSize;
-	header->memorySentinal = HUNK_SENTINAL;
-	strcpy(header->name, requestName);
+	header->memorySentinal = HUNK_SENTINEL;
+	// want to use strncpy because the name could be longet than 8 bytes
+	strncpy(header->name, requestName, 8);
 
 	return (void*)(header + 1);
+}
+
+// Reset the memory stack pointer
+void Hunk_FreeToLowMark(int mark) {
+	memset(HunkBase + mark, 0, HunkLowOffset - mark);
+	HunkLowOffset = mark;
+}
+
+void* Hunk_HighAllocName(int requestSize, char* requestName) {
+	int totalSize = sizeof(hunk_t) + ((requestSize + 15)& ~15);
+
+	hunk_t* header;
+
+	HunkHighOffset += totalSize;
+
+	header = (hunk_t*)(HunkBase + HunkSize - HunkHighOffset);
+	
+
+	memset(header, 0, totalSize);
+
+	header->memorySize = totalSize;
+	header->memorySentinal = HUNK_SENTINEL;
+	strncpy(header->name, requestName, 8);
+
+	return (void*)(header + 1);
+}
+
+void Hunk_FreeToHighMark(int mark) {
+	memset(HunkBase + HunkSize - HunkHighOffset, 0, HunkHighOffset - mark);
+	HunkHighOffset = mark;
 }

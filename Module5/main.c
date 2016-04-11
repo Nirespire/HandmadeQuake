@@ -15,5 +15,7 @@ int main() {
 
 	*temp = 4;
 
+	Hunk_Check();
+
 	return 0;
 }
